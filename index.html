@@ -3,101 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スマホ料金シミュレーター</title>
-    <!-- デザインライブラリ -->
+    <title>スマホ料金シミュレーターPro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React本体 -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- プログラムを動かすための翻訳機 -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        // Reactの機能を準備
-        const { useState } = React;
+        const { useState, useEffect } = React;
+        const { motion, AnimatePresence } = FramerMotion;
 
         function MobileFeeSimulator() {
+            const CARRIER_OPTIONS = ['ドコモ', 'au', 'ソフトバンク', 'Y!mobile', 'UQmobile', 'ahamo', '楽天モバイル'];
+            
             const [selectedCarrierA, setSelectedCarrierA] = useState('ドコモ');
-            const [selectedCarrierB, setSelectedCarrierB] = useState('au');
-            const [deviceA, setDeviceA] = useState(0);
-            const [deviceB, setDeviceB] = useState(0);
-            const [planA, setPlanA] = useState(0);
-            const [planB, setPlanB] = useState(0);
+            const [selectedCarrierB, setSelectedCarrierB] = useState('UQmobile');
+            const [devices, setDevices] = useState([{ deviceFeeA: '', deviceFeeB: '', planFeeA: '', planFeeB: '' }]);
+            const [familyLines, setFamilyLines] = useState(3);
             const [showResults, setShowResults] = useState(false);
 
             const MONTHS = 23;
-            const totalA = (Number(deviceA) + Number(planA)) * MONTHS;
-            const totalB = (Number(deviceB) + Number(planB)) * MONTHS;
-            const savings = totalA - totalB;
+
+            // 計算ロジック
+            const results = devices.map(d => ({
+                savings: ((Number(d.deviceFeeA) + Number(d.planFeeA)) - (Number(d.deviceFeeB) + Number(d.planFeeB))) * MONTHS
+            }));
+            const grandTotalSavings = results.reduce((sum, r) => sum + r.savings, 0);
+
+            const addDevice = () => { if (devices.length < 5) setDevices([...devices, { deviceFeeA: '', deviceFeeB: '', planFeeA: '', planFeeB: '' }]); };
+            const updateDevice = (index, field, value) => {
+                const newDevices = [...devices];
+                newDevices[index][field] = value;
+                setDevices(newDevices);
+            };
 
             return (
-                <div className="min-h-screen pb-10 font-sans">
-                    <header className="bg-white border-b py-6 text-center shadow-sm">
-                        <h1 className="text-xl font-bold">スマホ料金シミュレーター</h1>
+                <div className="min-h-screen pb-20">
+                    <header className="bg-white/80 sticky top-0 z-30 border-b py-4 px-6 text-center backdrop-blur-md">
+                        <h1 className="text-xl font-black tracking-tighter text-slate-800">スマホ料金シミュレーター</h1>
                     </header>
 
-                    <main className="max-w-md mx-auto px-4 mt-8 space-y-6">
+                    <main className="max-w-xl mx-auto px-4 mt-6">
                         {!showResults ? (
                             <div className="space-y-6">
-                                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+                                {/* キャリア選択 */}
+                                <section className="p-6 rounded-[2rem] bg-white border shadow-sm space-y-4">
+                                    <div className="flex items-center gap-2 mb-2 text-indigo-600 font-bold text-sm">
+                                        <span>キャリア比較設定</span>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-400 block mb-2">現在のキャリア</label>
-                                            <select value={selectedCarrierA} onChange={(e) => setSelectedCarrierA(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50">
-                                                <option>ドコモ</option><option>au</option><option>ソフトバンク</option><option>Y!mobile</option><option>UQmobile</option><option>ahamo</option>
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] font-bold text-slate-400 ml-1">現在</span>
+                                            <select value={selectedCarrierA} onChange={(e) => setSelectedCarrierA(e.target.value)} className="w-full p-3 border rounded-2xl bg-slate-50 font-bold">
+                                                {CARRIER_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
                                             </select>
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-indigo-600 block mb-2">乗り換え後</label>
-                                            <select value={selectedCarrierB} onChange={(e) => setSelectedCarrierB(e.target.value)} className="w-full p-3 border-2 border-indigo-500 rounded-xl">
-                                                <option>ドコモ</option><option>au</option><option>ソフトバンク</option><option>Y!mobile</option><option>UQmobile</option><option>ahamo</option>
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] font-bold text-indigo-500 ml-1">乗り換え後</span>
+                                            <select value={selectedCarrierB} onChange={(e) => setSelectedCarrierB(e.target.value)} className="w-full p-3 border-2 border-indigo-500 rounded-2xl bg-white font-bold">
+                                                {CARRIER_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
                                             </select>
                                         </div>
+                                    </div>
+                                </section>
+
+                                {/* デバイス入力 */}
+                                {devices.map((device, index) => (
+                                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={index} className="bg-white p-6 rounded-[2rem] border shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                                        <h3 className="font-black text-slate-800 mb-4 flex items-center gap-2">
+                                            <span className="bg-slate-100 px-2 py-1 rounded text-xs">利用者 {index + 1}</span>
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-3">
+                                                <p className="text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest">月々の端末代</p>
+                                                <input type="number" placeholder={selectedCarrierA} value={device.deviceFeeA} onChange={(e) => updateDevice(index, 'deviceFeeA', e.target.value)} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" />
+                                                <input type="number" placeholder={selectedCarrierB} value={device.deviceFeeB} onChange={(e) => updateDevice(index, 'deviceFeeB', e.target.value)} className="w-full p-3 border-indigo-100 border-2 rounded-xl text-sm" />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <p className="text-[10px] font-bold text-slate-500 text-center uppercase tracking-widest">月々の通信料</p>
+                                                <input type="number" placeholder={selectedCarrierA} value={device.planFeeA} onChange={(e) => updateDevice(index, 'planFeeA', e.target.value)} className="w-full p-3 bg-slate-50 border rounded-xl text-sm" />
+                                                <input type="number" placeholder={selectedCarrierB} value={device.planFeeB} onChange={(e) => updateDevice(index, 'planFeeB', e.target.value)} className="w-full p-3 border-indigo-100 border-2 rounded-xl text-sm" />
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+
+                                <button onClick={addDevice} className="w-full py-4 border-2 border-dashed border-slate-300 rounded-2xl text-slate-400 font-bold hover:bg-white transition-all">
+                                    + 利用者を追加する
+                                </button>
+
+                                <div className="bg-white p-6 rounded-[2rem] border shadow-sm">
+                                    <label className="text-xs font-bold text-slate-500 block mb-2 text-center">家族の合計回線数（割引判定用）</label>
+                                    <div className="flex justify-center items-center gap-6">
+                                        <button onClick={() => setFamilyLines(Math.max(1, familyLines-1))} className="w-10 h-10 rounded-full border shadow-sm">-</button>
+                                        <span className="text-2xl font-black">{familyLines}回線</span>
+                                        <button onClick={() => setFamilyLines(familyLines+1)} className="w-10 h-10 rounded-full border shadow-sm">+</button>
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-6">
-                                    <div className="space-y-4">
-                                        <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のスマホ代（端末分割金）</p>
-                                        <input type="number" placeholder={`${selectedCarrierA}の金額`} onChange={(e) => setDeviceA(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
-                                        <input type="number" placeholder={`${selectedCarrierB}の金額`} onChange={(e) => setDeviceB(e.target.value)} className="w-full p-4 border-2 border-indigo-50 shadow-inner rounded-2xl" />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のプラン料金（通信料）</p>
-                                        <input type="number" placeholder={`${selectedCarrierA}の金額`} onChange={(e) => setPlanA(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
-                                        <input type="number" placeholder={`${selectedCarrierB}の金額`} onChange={(e) => setPlanB(e.target.value)} className="w-full p-4 border-2 border-indigo-50 shadow-inner rounded-2xl" />
-                                    </div>
-                                </div>
-
-                                <button onClick={() => setShowResults(true)} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-xl shadow-xl active:scale-95 transition-transform">
-                                    結果を見る
+                                <button onClick={() => setShowResults(true)} className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl shadow-2xl active:scale-95 transition-all">
+                                    シミュレーション実行
                                 </button>
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white relative shadow-2xl">
-                                    <p className="text-indigo-300 font-bold mb-2">23ヶ月のお得額 合計</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-5xl font-black italic">¥{savings.toLocaleString()}</span>
-                                        <span className="text-lg font-bold">お得！</span>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-6 rounded-3xl border shadow-sm">
-                                    <p className="font-bold mb-8 text-sm text-center italic">4年間の返却スケジュール図</p>
-                                    <div className="relative h-3 w-full bg-slate-100 rounded-full mb-10">
-                                        <div className="absolute h-full w-1/2 bg-indigo-500 rounded-l-full"></div>
-                                        <div className="absolute left-1/2 -top-2 translate-x-[-50%]">
-                                            <div className="w-1 h-8 bg-rose-500"></div>
-                                            <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-rose-600">23ヶ月目で返却</p>
+                                {/* メイン結果 */}
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-indigo-600 p-8 rounded-[2.5rem] text-white relative shadow-2xl overflow-hidden">
+                                    <div className="relative z-10">
+                                        <p className="text-indigo-200 font-bold mb-2">23ヶ月（約2年）の合計節約額</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-6xl font-black italic">¥{grandTotalSavings.toLocaleString()}</span>
+                                            <span className="text-xl font-bold">DOWN!</span>
                                         </div>
                                     </div>
+                                    <motion.div initial={{ rotate: 20, x: 100 }} animate={{ rotate: -12, x: 0 }} className="absolute -top-4 -right-4 bg-yellow-400 text-slate-900 font-black px-4 py-2 rounded-lg shadow-xl text-xl">
+                                        おトク確定！
+                                    </motion.div>
+                                </motion.div>
+
+                                {/* スケジュール図 */}
+                                <section className="bg-white p-6 rounded-[2.5rem] border shadow-sm">
+                                    <h3 className="font-black text-center text-sm mb-10 tracking-widest">4年間の返却スケジュールイメージ</h3>
+                                    <div className="relative h-4 w-full bg-slate-100 rounded-full mb-12">
+                                        <div className="absolute h-full w-1/2 bg-indigo-500 rounded-l-full"></div>
+                                        <div className="absolute left-0 -top-6 text-[10px] font-bold text-slate-400 uppercase">Start</div>
+                                        <div className="absolute right-0 -top-6 text-[10px] font-bold text-slate-400 uppercase">48 Months</div>
+                                        <div className="absolute left-1/2 -translate-x-1/2">
+                                            <div className="w-1 h-12 bg-rose-500 relative">
+                                                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap shadow-lg">
+                                                    23ヶ月目：最大効率で返却
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* アドバイス */}
+                                <div className="bg-white p-6 rounded-[2rem] border-2 border-indigo-50 shadow-sm">
+                                    <p className="font-black text-indigo-600 mb-3 flex items-center gap-2">
+                                        💡 アドバイス
+                                    </p>
+                                    <p className="text-sm leading-relaxed font-bold text-slate-600">
+                                        {familyLines >= 3 
+                                            ? `家族割(3回線以上)がフル適用されるため、${selectedCarrierB}への乗り換えは非常に強力な選択肢です。`
+                                            : `家族割の効果が限定的なため、単体でも安いahamoや格安SIMへの切り替えも併せて検討の価値があります。`}
+                                    </p>
                                 </div>
 
-                                <button onClick={() => setShowResults(false)} className="w-full py-4 text-slate-400 font-bold">← 入力に戻る</button>
+                                <button onClick={() => setShowResults(false)} className="w-full py-4 text-slate-400 font-bold hover:text-slate-600">
+                                    修正・再計算する
+                                </button>
                             </div>
                         )}
                     </main>
@@ -105,7 +170,6 @@
             );
         }
 
-        // 画面に表示する
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<MobileFeeSimulator />);
     </script>
