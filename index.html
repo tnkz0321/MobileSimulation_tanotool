@@ -4,147 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>スマホ料金シミュレーター</title>
-    <!-- デザインを司るライブラリ（これがないと文字だけになります） -->
+    <!-- デザインライブラリ -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- React本体 -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- プログラムを動かすための翻訳機 -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <!-- アイコンの読み込み -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; }
-        /* 万が一読み込みが遅れても真っ白にならないための工夫 */
-        [v-cloak] { display: none; }
-    </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect } = React;
-        const { motion, AnimatePresence } = FramerMotion;
+        // Reactの機能を準備
+        const { useState } = React;
 
         function MobileFeeSimulator() {
-            // --- 設定とデータ ---
-            const CARRIER_OPTIONS = ['ドコモ', 'au', 'ソフトバンク', 'Y!mobile', 'UQmobile', 'ahamo'];
             const [selectedCarrierA, setSelectedCarrierA] = useState('ドコモ');
             const [selectedCarrierB, setSelectedCarrierB] = useState('au');
-            const [devices, setDevices] = useState([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]);
-            const [familyLines, setFamilyLines] = useState(1);
+            const [deviceA, setDeviceA] = useState(0);
+            const [deviceB, setDeviceB] = useState(0);
+            const [planA, setPlanA] = useState(0);
+            const [planB, setPlanB] = useState(0);
             const [showResults, setShowResults] = useState(false);
 
-            // --- 計算ロジック ---
             const MONTHS = 23;
-            const deviceSavingsTotal = devices.reduce((sum, d) => sum + (d.deviceFeeA - d.deviceFeeB) * MONTHS, 0);
-            const planSavingsTotal = devices.reduce((sum, d) => sum + (d.planFeeA - d.planFeeB) * MONTHS, 0);
-            const grandTotalSavings = deviceSavingsTotal + planSavingsTotal;
-
-            const updateDevice = (index, field, value) => {
-                const newDevices = [...devices];
-                newDevices[index][field] = Number(value);
-                setDevices(newDevices);
-            };
-
-            // --- スタンプ部品 ---
-            const Stamp = ({ text }) => (
-                <motion.div 
-                    initial={{ scale: 2, opacity: 0, rotate: -20 }}
-                    animate={{ scale: 1, opacity: 1, rotate: -12 }}
-                    className="absolute -top-6 -right-6 border-4 border-rose-600 text-rose-600 font-black rounded-lg px-4 py-2 bg-white shadow-xl text-2xl z-10"
-                >
-                    {text}
-                </motion.div>
-            );
+            const totalA = (Number(deviceA) + Number(planA)) * MONTHS;
+            const totalB = (Number(deviceB) + Number(planB)) * MONTHS;
+            const savings = totalA - totalB;
 
             return (
-                <div className="min-h-screen pb-10">
-                    <header className="bg-white border-b py-6 px-4 text-center shadow-sm">
+                <div className="min-h-screen pb-10 font-sans">
+                    <header className="bg-white border-b py-6 text-center shadow-sm">
                         <h1 className="text-xl font-bold">スマホ料金シミュレーター</h1>
                     </header>
 
-                    <main className="max-w-2xl mx-auto px-4 mt-8 space-y-6">
+                    <main className="max-w-md mx-auto px-4 mt-8 space-y-6">
                         {!showResults ? (
-                            <>
-                                {/* キャリア選択 */}
-                                <div className="bg-white p-6 rounded-3xl border shadow-sm grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-400 block mb-2">現在のキャリア</label>
-                                        <select value={selectedCarrierA} onChange={(e) => setSelectedCarrierA(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50">
-                                            {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-indigo-600 block mb-2">乗り換え後</label>
-                                        <select value={selectedCarrierB} onChange={(e) => setSelectedCarrierB(e.target.value)} className="w-full p-3 border-2 border-indigo-500 rounded-xl bg-white">
-                                            {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
+                            <div className="space-y-6">
+                                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-400 block mb-2">現在のキャリア</label>
+                                            <select value={selectedCarrierA} onChange={(e) => setSelectedCarrierA(e.target.value)} className="w-full p-3 border rounded-xl bg-slate-50">
+                                                <option>ドコモ</option><option>au</option><option>ソフトバンク</option><option>Y!mobile</option><option>UQmobile</option><option>ahamo</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-indigo-600 block mb-2">乗り換え後</label>
+                                            <select value={selectedCarrierB} onChange={(e) => setSelectedCarrierB(e.target.value)} className="w-full p-3 border-2 border-indigo-500 rounded-xl">
+                                                <option>ドコモ</option><option>au</option><option>ソフトバンク</option><option>Y!mobile</option><option>UQmobile</option><option>ahamo</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* 入力エリア */}
-                                {devices.map((device, index) => (
-                                    <div key={index} className="bg-white p-6 rounded-3xl border shadow-sm space-y-6">
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-bold text-white bg-slate-800 px-3 py-1 rounded-full text-xs italic">CASE {index + 1}</span>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-6">
-                                            <div className="space-y-3">
-                                                <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のスマホ代（分割金など）</p>
-                                                <input type="number" placeholder={`${selectedCarrierA}での金額`} onChange={(e) => updateDevice(index, 'deviceFeeA', e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
-                                                <input type="number" placeholder={`${selectedCarrierB}での金額`} onChange={(e) => updateDevice(index, 'deviceFeeB', e.target.value)} className="w-full p-4 border-2 border-indigo-100 rounded-2xl" />
-                                            </div>
-                                            <div className="space-y-3">
-                                                <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のプラン料金（通信料）</p>
-                                                <input type="number" placeholder={`${selectedCarrierA}での金額`} onChange={(e) => updateDevice(index, 'planFeeA', e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
-                                                <input type="number" placeholder={`${selectedCarrierB}での金額`} onChange={(e) => updateDevice(index, 'planFeeB', e.target.value)} className="w-full p-4 border-2 border-indigo-100 rounded-2xl" />
-                                            </div>
-                                        </div>
+                                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-6">
+                                    <div className="space-y-4">
+                                        <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のスマホ代（端末分割金）</p>
+                                        <input type="number" placeholder={`${selectedCarrierA}の金額`} onChange={(e) => setDeviceA(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
+                                        <input type="number" placeholder={`${selectedCarrierB}の金額`} onChange={(e) => setDeviceB(e.target.value)} className="w-full p-4 border-2 border-indigo-50 shadow-inner rounded-2xl" />
                                     </div>
-                                ))}
+                                    <div className="space-y-4">
+                                        <p className="text-sm font-bold border-l-4 border-slate-300 pl-2">月々のプラン料金（通信料）</p>
+                                        <input type="number" placeholder={`${selectedCarrierA}の金額`} onChange={(e) => setPlanA(e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl" />
+                                        <input type="number" placeholder={`${selectedCarrierB}の金額`} onChange={(e) => setPlanB(e.target.value)} className="w-full p-4 border-2 border-indigo-50 shadow-inner rounded-2xl" />
+                                    </div>
+                                </div>
 
                                 <button onClick={() => setShowResults(true)} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-xl shadow-xl active:scale-95 transition-transform">
-                                    シミュレーション結果を見る
+                                    結果を見る
                                 </button>
-                            </>
+                            </div>
                         ) : (
                             <div className="space-y-6">
-                                {/* 結果カード */}
                                 <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white relative shadow-2xl">
                                     <p className="text-indigo-300 font-bold mb-2">23ヶ月のお得額 合計</p>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-5xl font-black italic">¥{grandTotalSavings.toLocaleString()}</span>
+                                        <span className="text-5xl font-black italic">¥{savings.toLocaleString()}</span>
                                         <span className="text-lg font-bold">お得！</span>
                                     </div>
-                                    <Stamp text="お乗り換え推奨" />
                                 </div>
 
-                                {/* 内訳 */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white p-5 rounded-3xl border text-center">
-                                        <p className="text-xs text-slate-400 font-bold mb-1">端末代の節約</p>
-                                        <p className="text-xl font-bold text-slate-800">¥{deviceSavingsTotal.toLocaleString()}</p>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-3xl border text-center">
-                                        <p className="text-xs text-slate-400 font-bold mb-1">通信料の節約</p>
-                                        <p className="text-xl font-bold text-slate-800">¥{planSavingsTotal.toLocaleString()}</p>
-                                    </div>
-                                </div>
-
-                                {/* スケジュール図 */}
                                 <div className="bg-white p-6 rounded-3xl border shadow-sm">
-                                    <p className="font-bold mb-8 text-sm text-center">4年間の端末返却イメージ</p>
+                                    <p className="font-bold mb-8 text-sm text-center italic">4年間の返却スケジュール図</p>
                                     <div className="relative h-3 w-full bg-slate-100 rounded-full mb-10">
                                         <div className="absolute h-full w-1/2 bg-indigo-500 rounded-l-full"></div>
                                         <div className="absolute left-1/2 -top-2 translate-x-[-50%]">
                                             <div className="w-1 h-8 bg-rose-500"></div>
-                                            <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-200">23ヶ月目で返却</p>
+                                            <p className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-rose-600">23ヶ月目で返却</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <button onClick={() => setShowResults(false)} className="w-full py-4 text-slate-400 font-bold">← 入力画面に戻る</button>
+                                <button onClick={() => setShowResults(false)} className="w-full py-4 text-slate-400 font-bold">← 入力に戻る</button>
                             </div>
                         )}
                     </main>
@@ -152,6 +105,7 @@
             );
         }
 
+        // 画面に表示する
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<MobileFeeSimulator />);
     </script>
