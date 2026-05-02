@@ -1,0 +1,286 @@
+
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Smartphone, 
+  Wifi, 
+  Mail, 
+  Users, 
+  ArrowRight, 
+  TrendingDown, 
+  CheckCircle2, 
+  Info,
+  RotateCcw,
+  AlertCircle,
+  Plus,
+  ArrowLeft
+} from 'lucide-react';
+
+type EmailType = 'carrier' | 'free' | 'other';
+
+export default function MobileFeeSimulator() {
+  // Carrier names and selection states
+  const CARRIER_OPTIONS = ['ドコモ', 'au', 'ソフトバンク', 'Y!mobile', 'UQmobile', 'ahamo'];
+  
+  const [selectedCarrierA, setSelectedCarrierA] = useState<string>('ドコモ');
+  const [customCarrierA, setCustomCarrierA] = useState<string>('');
+  const [selectedCarrierB, setSelectedCarrierB] = useState<string>('au');
+
+  // Derived display names for results
+  const nameA = selectedCarrierA === 'その他' ? (customCarrierA || 'その他') : selectedCarrierA;
+  const nameB = selectedCarrierB;
+
+  // Input states
+  const [devices, setDevices] = useState([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]);
+  const [targetDevice, setTargetDevice] = useState<string>('');
+  const [selectedEmail, setSelectedEmail] = useState<EmailType>('free');
+  const [linesCount, setLinesCount] = useState<number>(1);
+  const [internetService, setInternetService] = useState<string>('');
+  const [hasInternetDiscount, setHasInternetDiscount] = useState<'yes' | 'no' | 'unknown'>('no');
+  const [validationError, setValidationError] = useState(false);
+  const [carrierSameError, setCarrierSameError] = useState(false);
+  
+  const [showResults, setShowResults] = useState(false);
+
+  // Calculations (Dynamic for multiple units)
+  const MONTHS = 23;
+  const deviceSavingsTotal = devices.reduce((sum, d) => sum + (d.deviceFeeA - d.deviceFeeB) * MONTHS, 0);
+  const planSavingsTotal = devices.reduce((sum, d) => sum + (d.planFeeA - d.planFeeB) * MONTHS, 0);
+  const grandTotalSavings = deviceSavingsTotal + planSavingsTotal;
+  const totalSavingsPerUnit = devices.length > 0 ? grandTotalSavings / devices.length : 0;
+
+  const handleAddDevice = () => {
+    if (devices.length < 6) {
+      setDevices([...devices, { deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]);
+    }
+  };
+
+  const handleCopyFirstDevice = (index: number) => {
+    if (index === 0) return;
+    const newDevices = [...devices];
+    newDevices[index] = { ...newDevices[0] };
+    setDevices(newDevices);
+  };
+
+  const updateDevice = (index: number, field: keyof typeof devices[0], value: number) => {
+    const newDevices = [...devices];
+    newDevices[index][field] = value;
+    setDevices(newDevices);
+  };
+
+  const handleCalculate = () => {
+    if (nameA === nameB) {
+      setCarrierSameError(true);
+      document.getElementById('carrier-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setCarrierSameError(false);
+
+    const hasIncomplete = devices.every(d => d.deviceFeeA === 0 && d.deviceFeeB === 0 && d.planFeeA === 0 && d.planFeeB === 0);
+    if (hasIncomplete) {
+      setValidationError(true);
+      document.getElementById('device-fees-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setValidationError(false);
+    setShowResults(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReset = () => {
+    setShowResults(false);
+    setDevices([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]);
+    setSelectedEmail('free');
+    setLinesCount(1);
+    setSelectedCarrierA('ドコモ');
+    setCustomCarrierA('');
+    setSelectedCarrierB('au');
+    setTargetDevice('');
+    setInternetService('');
+    setHasInternetDiscount('no');
+    setValidationError(false);
+    setCarrierSameError(false);
+  };
+
+  return (
+    <div className="min-h-screen pb-20 bg-slate-50 font-sans text-slate-900">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-100 py-8 px-6 mb-4 text-center">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto">
+          <div className="inline-flex items-center justify-center p-3 bg-indigo-50 rounded-2xl mb-4">
+            <Smartphone className="w-8 h-8 text-indigo-600" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-2 relative inline-block">
+            スマホ料金比較シミュレーター
+            <span className="block sm:absolute sm:bottom-0 sm:right-0 sm:translate-y-full text-[10px] text-slate-400 font-bold tracking-wider mt-1 sm:mt-0">
+              tano tool
+            </span>
+          </h1>
+          <p className="text-slate-500 max-w-lg mx-auto mt-4 text-sm">
+            現状のキャリアと乗り換え先の料金を比較して、2年間でどれくらいお得になるか診断します。
+          </p>
+        </motion.div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6">
+        <AnimatePresence mode="wait">
+          {!showResults ? (
+            <motion.div key="inputs" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+              
+              {/* Carrier Selection */}
+              <section id="carrier-section" className={`p-6 rounded-3xl border bg-white shadow-sm transition-all duration-300 ${carrierSameError ? 'border-red-500 bg-red-50/30' : 'border-indigo-100'}`}>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="flex-1 w-full space-y-2">
+                    <label className={`text-xs font-bold uppercase tracking-widest mb-1 block ${carrierSameError ? 'text-red-500' : 'text-indigo-600'}`}>現在のキャリア</label>
+                    <div className="relative">
+                      <select
+                        value={selectedCarrierA}
+                        onChange={(e) => { setSelectedCarrierA(e.target.value); setCarrierSameError(false); }}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold appearance-none cursor-pointer text-center text-lg shadow-sm"
+                      >
+                        {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        <option value="その他">その他</option>
+                      </select>
+                    </div>
+                    {selectedCarrierA === 'その他' && (
+                      <input 
+                        type="text" 
+                        value={customCarrierA} 
+                        onChange={(e) => setCustomCarrierA(e.target.value)} 
+                        className="w-full mt-2 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-center"
+                        placeholder="キャリア名を入力"
+                      />
+                    )}
+                  </div>
+                  <div className="hidden sm:flex self-center pt-6 text-slate-300 font-black italic">VS</div>
+                  <div className="flex-1 w-full space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest mb-1 block text-indigo-600">乗り換え先</label>
+                    <select
+                      value={selectedCarrierB}
+                      onChange={(e) => { setSelectedCarrierB(e.target.value); setCarrierSameError(false); }}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold appearance-none cursor-pointer text-center text-lg shadow-sm"
+                    >
+                      {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {carrierSameError && <p className="mt-4 text-xs text-red-500 font-bold text-center">※同じキャリアは比較できません</p>}
+              </section>
+
+              {/* Input Fields Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Device Fees */}
+                <section id="device-fees-section" className={`p-6 rounded-3xl border bg-white shadow-sm ${validationError ? 'border-red-500' : 'border-slate-100'}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold flex items-center gap-2"><Smartphone className="w-4 h-4 text-indigo-600"/>端末代(月額)</h2>
+                    <button onClick={handleAddDevice} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold">+ 追加</button>
+                  </div>
+                  {devices.map((device, index) => (
+                    <div key={index} className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex justify-between mb-2">
+                        <span className="text-[10px] font-bold text-slate-400">{index + 1}台目</span>
+                        {index > 0 && <button onClick={() => handleCopyFirstDevice(index)} className="text-[9px] text-indigo-500 underline">1台目をコピー</button>}
+                      </div>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input type="number" value={device.deviceFeeA || ''} onChange={(e) => updateDevice(index, 'deviceFeeA', Number(e.target.value))} className="w-full pl-3 pr-8 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500" placeholder={`現在の${nameA}料金`}/>
+                          <span className="absolute right-3 top-2 text-[10px] text-slate-400">円</span>
+                        </div>
+                        <div className="relative">
+                          <input type="number" value={device.deviceFeeB || ''} onChange={(e) => updateDevice(index, 'deviceFeeB', Number(e.target.value))} className="w-full pl-3 pr-8 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500" placeholder={`乗り換え後の${nameB}料金`}/>
+                          <span className="absolute right-3 top-2 text-[10px] text-slate-400">円</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+
+                {/* Plan Fees */}
+                <section className="p-6 rounded-3xl border border-slate-100 bg-white shadow-sm">
+                  <h2 className="font-bold mb-4 flex items-center gap-2"><Wifi className="w-4 h-4 text-indigo-600"/>通信料(月額)</h2>
+                  {devices.map((device, index) => (
+                    <div key={index} className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-2">{index + 1}台目</span>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input type="number" value={device.planFeeA || ''} onChange={(e) => updateDevice(index, 'planFeeA', Number(e.target.value))} className="w-full pl-3 pr-8 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500" placeholder="現在のプラン"/>
+                          <span className="absolute right-3 top-2 text-[10px] text-slate-400">円</span>
+                        </div>
+                        <div className="relative">
+                          <input type="number" value={device.planFeeB || ''} onChange={(e) => updateDevice(index, 'planFeeB', Number(e.target.value))} className="w-full pl-3 pr-8 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500" placeholder="乗り換え後のプラン"/>
+                          <span className="absolute right-3 top-2 text-[10px] text-slate-400">円</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              </div>
+
+              <div className="flex justify-center pt-6">
+                <button onClick={handleCalculate} className="group flex items-center gap-3 px-16 py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">
+                  結果をみる <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="results" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+              {/* Result Card */}
+              <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+                <div className="relative z-10">
+                  <p className="text-indigo-100 text-sm font-bold mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4"/> 2年間の節約期待額
+                  </p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">¥</span>
+                    <span className="text-6xl font-black tracking-tighter">{grandTotalSavings.toLocaleString()}</span>
+                    <span className="text-xl font-bold ml-2">お得！</span>
+                  </div>
+                  <p className="mt-4 text-indigo-100/80 text-xs">
+                    ※1台あたり約 {Math.round(totalSavingsPerUnit).toLocaleString()} 円の節約になります
+                  </p>
+                </div>
+                {/* Decorative Circles */}
+                <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+              </div>
+
+              {/* Breakdown Table */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <h3 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><Info className="w-4 h-4" /> 詳細内訳 (23ヶ月分)</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between py-2 border-b border-slate-50">
+                    <span className="text-sm text-slate-500">端末代の差額</span>
+                    <span className={`font-bold ${deviceSavingsTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {deviceSavingsTotal >= 0 ? '▲' : '＋'}{Math.abs(deviceSavingsTotal).toLocaleString()}円
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-50">
+                    <span className="text-sm text-slate-500">プラン料金の差額</span>
+                    <span className={`font-bold ${planSavingsTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {planSavingsTotal >= 0 ? '▲' : '＋'}{Math.abs(planSavingsTotal).toLocaleString()}円
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setShowResults(false)} className="flex items-center justify-center gap-2 py-4 border-2 border-slate-200 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-all">
+                  <ArrowLeft className="w-4 h-4" /> 修正する
+                </button>
+                <button onClick={handleReset} className="flex items-center justify-center gap-2 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all">
+                  <RotateCcw className="w-4 h-4" /> 最初から
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
+/** * @license * SPDX-License-Identifier: Apache-2.0 */ import React, { useState, useMemo } from 'react'; import { motion, AnimatePresence } from 'framer-motion'; import { Smartphone, Wifi, Mail, Users, ArrowRight, CheckCircle2, Info, RotateCcw, Plus, ArrowLeft, ChevronDown, AlertTriangle } from 'lucide-react'; type EmailType = 'carrier' | 'free' | 'other'; export default function MobileFeeSimulator() { const CARRIER_OPTIONS = ['ドコモ', 'au', 'ソフトバンク', 'Y!mobile', 'UQmobile', 'ahamo']; // --- States --- const [selectedCarrierA, setSelectedCarrierA] = useState<string>('ドコモ'); const [customCarrierA, setCustomCarrierA] = useState<string>(''); const [selectedCarrierB, setSelectedCarrierB] = useState<string>('au'); const [devices, setDevices] = useState([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]); const [selectedEmail, setSelectedEmail] = useState<EmailType>('free'); const [familyLines, setFamilyLines] = useState<number>(1); const [hasInternetDiscount, setHasInternetDiscount] = useState<'yes' | 'no' | 'unknown'>('no'); const [showResults, setShowResults] = useState(false); const [carrierSameError, setCarrierSameError] = useState(false); const nameA = selectedCarrierA === 'その他' ? (customCarrierA || 'その他') : selectedCarrierA; const nameB = selectedCarrierB; // --- Calculations --- const MONTHS = 23; const deviceSavingsTotal = devices.reduce((sum, d) => sum + (d.deviceFeeA - d.deviceFeeB) * MONTHS, 0); const planSavingsTotal = devices.reduce((sum, d) => sum + (d.planFeeA - d.planFeeB) * MONTHS, 0); const grandTotalSavings = deviceSavingsTotal + planSavingsTotal; const remainingFamilyLines = familyLines - devices.length; // --- Handlers --- const handleAddDevice = () => { if (devices.length < 6) { setDevices([...devices, { deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]); } }; const handleCopyFirstDevice = (index: number) => { const newDevices = [...devices]; newDevices[index] = { ...devices[0] }; setDevices(newDevices); }; const updateDevice = (index: number, field: keyof typeof devices[0], value: number) => { const newDevices = [...devices]; newDevices[index][field] = value; setDevices(newDevices); }; const handleCalculate = () => { if (nameA === nameB) { setCarrierSameError(true); return; } setCarrierSameError(false); setShowResults(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }; // --- UI Components --- const Stamp = ({ text, color = "red", isLarge = false }: { text: string, color?: string, isLarge?: boolean }) => ( <motion.div initial={{ scale: 2, opacity: 0, rotate: -20 }} animate={{ scale: 1, opacity: 1, rotate: -12 }} className={`absolute z-20 pointer-events-none border-4 font-black rounded-lg px-4 py-2 bg-white shadow-xl ${isLarge ? 'text-2xl sm:text-4xl -top-10 -right-4 sm:-right-10' : 'text-xl -top-6 -right-6'} ${color === 'red' ? 'border-red-500 text-red-500' : 'border-rose-600 text-rose-600'}`} > {text} </motion.div> ); return ( <div className="min-h-screen pb-20 bg-slate-50 font-sans text-slate-900"> <header className="bg-white border-b border-slate-100 py-6 px-6 text-center"> <h1 className="text-2xl font-bold text-slate-900">スマホ料金比較シミュレーター</h1> </header> <main className="max-w-4xl mx-auto px-4 mt-8"> <AnimatePresence mode="wait"> {!showResults ? ( <motion.div key="inputs" className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}> {/* Carrier Selection */} <section className="p-6 rounded-3xl bg-white border border-slate-100 shadow-sm"> <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div> <label className="text-xs font-bold text-indigo-600 mb-2 block">検討中キャリア名</label> <div className="relative"> <select value={selectedCarrierA} onChange={(e) => {setSelectedCarrierA(e.target.value); setCarrierSameError(false);}} className="w-full p-3 border rounded-xl appearance-none bg-slate-50"> {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)} <option value="その他">その他</option> </select> <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-slate-400" /> </div> </div> <div> <label className="text-xs font-bold text-indigo-600 mb-2 block">乗り換え後のキャリア名</label> <div className="relative"> <select value={selectedCarrierB} onChange={(e) => {setSelectedCarrierB(e.target.value); setCarrierSameError(false);}} className="w-full p-3 border rounded-xl appearance-none bg-slate-50"> {CARRIER_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)} </select> <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-slate-400" /> </div> </div> </div> {carrierSameError && ( <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-red-500 text-sm font-bold mt-4 flex items-center gap-1"> <AlertTriangle className="w-4 h-4" /> キャリアが同一です </motion.p> )} </section> {/* Devices and Plans */} <div className="space-y-4"> <div className="flex items-center justify-between"> <h2 className="font-black text-lg flex items-center gap-2"><Smartphone className="w-5 h-5" /> 機種変更後の端末・通信料</h2> <button onClick={handleAddDevice} disabled={devices.length >= 6} className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-full font-bold flex items-center gap-1 disabled:bg-slate-300"> <Plus className="w-4 h-4" /> もう１台追加する </button> </div> {devices.map((device, index) => ( <div key={index} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden"> <div className="flex justify-between items-center mb-4 border-b border-slate-50 pb-2"> <span className="font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">{index + 1}台目</span> {index > 0 && ( <button onClick={() => handleCopyFirstDevice(index)} className="text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded font-bold text-slate-500"> 1台目情報コピー </button> )} </div> <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"> <div className="space-y-3"> <label className="text-[10px] font-bold text-slate-400 uppercase">端末代金(月々)</label> <input type="number" value={device.deviceFeeA || ''} onChange={(e) => updateDevice(index, 'deviceFeeA', Number(e.target.value))} className="w-full p-2 bg-slate-50 border rounded-lg" placeholder={`現在の${nameA}`}/> <input type="number" value={device.deviceFeeB || ''} onChange={(e) => updateDevice(index, 'deviceFeeB', Number(e.target.value))} className="w-full p-2 border-indigo-200 border rounded-lg" placeholder={`乗り換え後の${nameB}`}/> </div> <div className="space-y-3"> <label className="text-[10px] font-bold text-slate-400 uppercase">通信料金(月々)</label> <input type="number" value={device.planFeeA || ''} onChange={(e) => updateDevice(index, 'planFeeA', Number(e.target.value))} className="w-full p-2 bg-slate-50 border rounded-lg" placeholder={`現在の${nameA}`}/> <input type="number" value={device.planFeeB || ''} onChange={(e) => updateDevice(index, 'planFeeB', Number(e.target.value))} className="w-full p-2 border-indigo-200 border rounded-lg" placeholder={`乗り換え後の${nameB}`}/> </div> </div> </div> ))} </div> {/* Options */} <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6"> <div> <div className="mb-2"> <label className="text-xs font-bold text-slate-700 block">今回のご購入検討台数</label> </div> <input type="number" value={devices.length} readOnly className="w-full p-3 bg-slate-50 border rounded-xl font-bold" /> </div> <div> <div className="mb-1"> <label className="text-xs font-bold text-slate-700 block leading-tight">家族内同一キャリア回線数</label> <span className="text-[10px] text-slate-400 font-bold block">家族割回線</span> </div> <input type="number" value={familyLines} onChange={(e) => setFamilyLines(Number(e.target.value))} className="w-full p-3 border rounded-xl font-bold" /> </div> <div> <label className="text-xs font-bold text-slate-700 mb-2 block">メールオプション</label> <div className="relative"> <select value={selectedEmail} onChange={(e) => setSelectedEmail(e.target.value as EmailType)} className="w-full p-3 border rounded-xl appearance-none bg-white"> <option value="free">フリーメール</option> <option value="carrier">キャリアメール継続利用</option> </select> <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-slate-400" /> </div> </div> <div> <label className="text-xs font-bold text-slate-700 mb-2 block">現在のインターネットとのセット割引の有無</label> <div className="relative"> <select value={hasInternetDiscount} onChange={(e) => setHasInternetDiscount(e.target.value as any)} className="w-full p-3 border rounded-xl appearance-none bg-white"> <option value="yes">有り</option> <option value="no">無し</option> <option value="unknown">不明</option> </select> <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-slate-400" /> </div> </div> </section> <button onClick={handleCalculate} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"> 結果をみる <ArrowRight /> </button> </motion.div> ) : ( <motion.div key="results" className="space-y-8" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}> {/* Grand Total */} <div className="bg-slate-900 p-10 rounded-[40px] text-white relative shadow-2xl overflow-hidden"> <div className="relative z-10"> <h3 className="text-indigo-400 font-bold mb-2">2年間の料金差額</h3> <div className="flex items-baseline gap-2"> <span className="text-6xl font-black tracking-tighter">¥{grandTotalSavings.toLocaleString()}</span> <span className="text-xl font-bold">お得！</span> </div> {grandTotalSavings >= 50000 ? ( <Stamp text="お乗り換えが超お得です" isLarge={true} color="rose" /> ) : grandTotalSavings >= 1 && ( <Stamp text="お得" isLarge={true} color="red" /> )} </div> <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div> </div> {/* Timeline Chart */} <section className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"> <h3 className="font-black mb-6 text-slate-800">おトクな買い方のスケジュールイメージ</h3> <div className="relative pt-10 pb-16 px-4"> <div className="h-4 w-full bg-slate-100 rounded-full relative"> {/* Gauge bar */} <div className="absolute h-full w-1/2 bg-indigo-500 rounded-l-full"></div> {/* Points */} <div className="absolute left-0 -top-8 text-[10px] font-bold text-slate-400">0ヶ月</div> <div className="absolute left-1/2 -top-8 -translate-x-1/2 text-[10px] font-bold text-indigo-600">23か月もしくは24ヶ月</div> <div className="absolute right-0 -top-8 text-[10px] font-bold text-slate-400">48ヶ月</div> {/* Marker */} <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"> <div className="relative"> <div className="w-1 h-12 bg-rose-500"></div> <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-24 text-center"> <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap">約2年後ここでお返し</span> </div> </div> </div> </div> </div> <div className="mt-8 text-[10px] text-slate-400 text-right space-y-1"> <p>※キャリアによってお得な返却時期が異なります</p> <p>※返却時に手数料がかかる場合があります</p> </div> </section> {/* Breakdown */} <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div className="bg-white p-6 rounded-3xl border border-slate-100 relative"> <h4 className="text-lg font-black text-slate-700 mb-4">端末のお得になる金額</h4> <p className="text-4xl font-black text-slate-900">¥{deviceSavingsTotal.toLocaleString()}</p> {deviceSavingsTotal >= 1 && <Stamp text="お得" />} </div> <div className="bg-white p-6 rounded-3xl border border-slate-100 relative"> <h4 className="text-lg font-black text-slate-700 mb-4">通信料金のお得になる金額</h4> <p className="text-4xl font-black text-slate-900">¥{planSavingsTotal.toLocaleString()}</p> {planSavingsTotal >= 1 && <Stamp text="お得" />} </div> </div> {/* Extra Info */} <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 space-y-4"> {familyLines !== devices.length && ( <div className="flex gap-3"> <Users className="w-6 h-6 text-indigo-600 shrink-0" /> <div> <p className="font-bold text-indigo-900">家族割への影響</p> <p className="text-sm text-indigo-700"> {remainingFamilyLines < 3 ? `${remainingFamilyLines}回線以下のため、スタッフから詳細な料金案内をいたします。` : `ご家族の回線が${remainingFamilyLines}回線残るため、元のキャリアの家族割は継続可能です。`} </p> </div> </div> )} {selectedEmail === 'free' && ( <div className="flex gap-3 border-t border-indigo-200 pt-4"> <Mail className="w-6 h-6 text-indigo-600 shrink-0" /> <div> <p className="font-bold text-indigo-900">メール設定</p> <p className="text-sm text-indigo-700"> 追加料金なしで引き続き利用可<br/> <span className="font-black underline">お乗り換えしても問題なし！</span> </p> </div> </div> )} </div> {/* Reset Section */} <div className="text-center space-y-4"> <button onClick={() => setShowResults(false)} className="flex items-center gap-2 mx-auto text-slate-500 font-bold hover:text-indigo-600 transition-colors"> <ArrowLeft className="w-4 h-4" /> 入力内容を修正する </button> <div className="h-px bg-slate-200 w-24 mx-auto"></div> <button onClick={() => { setShowResults(false); setDevices([{ deviceFeeA: 0, deviceFeeB: 0, planFeeA: 0, planFeeB: 0 }]); }} className="group"> <span className="block text-lg font-black text-slate-900 group-hover:text-rose-600">最初からやり直す</span> <span className="block text-xs font-bold text-slate-400 mt-1">（入力データはリセットされます）</span> </button> </div> </motion.div> )} </AnimatePresence> </main> </div> ); }
